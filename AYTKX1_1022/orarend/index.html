@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AYTKX1 Órarend</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; color: #333; margin: 20px; }
+        h1 { text-align: center; color: #2c3e50; }
+        
+        /* Táblázat stílusok */
+        .table-container { overflow-x: auto; box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; background-color: #fff; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #009879; color: #ffffff; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.1em; }
+        tr:hover { background-color: #f1f1f1; }
+        tr:nth-of-type(even) { background-color: #f3f3f3; }
+        
+        /* Címkék stílusa */
+        .badge { padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; }
+        .online { background-color: #e1f5fe; color: #0288d1; }
+        .terem { background-color: #fff3e0; color: #ef6c00; }
+
+        .error { color: #d8000c; background-color: #ffbaba; padding: 10px; border-radius: 5px; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>📅 Órarend Megjelenítő</h1>
+    
+    <div id="status-message"></div>
+
+    <div class="table-container">
+        <table id="orarend-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Dátum & Idő</th>
+                    <th>Tárgy</th>
+                    <th>Helyszín</th>
+                    <th>Oktató</th>
+                    <th>Szak</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function betolt() {
+            const statusDiv = document.getElementById('status-message');
+            const table = document.getElementById('orarend-table');
+            const tbody = document.getElementById('table-body');
+            const fileName = 'AYTKX1_orarend.json'; // Fontos: pontos fájlnév!
+
+            try {
+                statusDiv.innerHTML = "⏳ Adatok betöltése...";
+                
+                const response = await fetch(fileName);
+                
+                if (!response.ok) {
+                    throw new Error(`A fájl nem található vagy nem olvasható (HTTP ${response.status}).`);
+                }
+
+                const data = await response.json();
+
+                // 1. A JSON szerkezetének ellenőrzése (AYTKX1_orarend kulcs!)
+                if (!data.AYTKX1_orarend || !data.AYTKX1_orarend.orak) {
+                    throw new Error("A JSON szerkezete nem megfelelő. Hiányzik az 'AYTKX1_orarend' vagy az 'orak' kulcs.");
+                }
+
+                const orak = data.AYTKX1_orarend.orak;
+
+                // 2. Táblázat feltöltése
+                orak.forEach(ora => {
+                    const tr = document.createElement('tr');
+                    
+                    // Időpont formázása (Objektumból String)
+                    const ido = ora.idopont;
+                    const datumSzoveg = `<strong>${ido.ev} ${ido.honap} ${ido.nap}</strong> <br> <small>${ido.nap2}</small> <br> ${ido.tol} - ${ido.ig}`;
+                    
+                    // Helyszín és Oktató kezelése (Ékezetes/Ékezet nélküli kulcsok)
+                    // A fájlban vegyesen van: helyszin / helyszín
+                    const helyszinAdat = ora.helyszin || ora.helyszín || "Nincs megadva";
+                    const oktatoAdat = ora.oktato || ora.oktató || "Nincs megadva";
+
+                    // Helyszín stílus (Online vs Terem)
+                    const helyszinClass = helyszinAdat.toLowerCase().includes('online') ? 'online' : 'terem';
+                    const helyszinHTML = `<span class="badge ${helyszinClass}">${helyszinAdat}</span>`;
+
+                    tr.innerHTML = `
+                        <td>${datumSzoveg}</td>
+                        <td style="font-weight:bold; color:#2c3e50;">${ora.targy}</td>
+                        <td>${helyszinHTML}</td>
+                        <td>${oktatoAdat}</td>
+                        <td style="font-size: 0.85rem; color: #666;">${ora.szak}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Sikeres betöltés
+                statusDiv.style.display = 'none';
+                table.style.display = 'table';
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <strong>⚠️ Hiba történt!</strong><br>
+                        ${error.message}<br><br>
+                        <em>Tipp: Ha a gépedről nyitod meg a fájlt, használd a VS Code "Live Server" bővítményét vagy Python szervert, mert a böngészők blokkolják a helyi fájlok betöltését.</em>
+                    </div>
+                `;
+            }
+        }
+
+        betolt();
+    </script>
+
+</body>
+</html>
